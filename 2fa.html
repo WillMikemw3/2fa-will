@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mec Vendas | Gerador 2FA</title>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        body {
+            height: 100vh;
+            background: linear-gradient(135deg, #0f172a, #1e293b);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+
+        .container {
+            background: #111827;
+            padding: 40px;
+            border-radius: 16px;
+            width: 350px;
+            text-align: center;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .brand {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 25px;
+            color: #38bdf8;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            border-radius: 10px;
+            border: none;
+            outline: none;
+            background: #1f2937;
+            color: white;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .code-box {
+            background: #0f172a;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+        }
+
+        .code {
+            font-size: 36px;
+            letter-spacing: 6px;
+            font-weight: bold;
+        }
+
+        .timer {
+            font-size: 13px;
+            color: #94a3b8;
+            margin-top: 8px;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            background: #38bdf8;
+            color: black;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+
+        button:hover {
+            opacity: 0.85;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <div class="brand">Mec Vendas</div>
+
+        <input id="secret" placeholder="Cole sua chave 2FA aqui">
+
+        <div class="code-box">
+            <div class="code" id="code">------</div>
+            <div class="timer" id="timer">Aguardando chave...</div>
+        </div>
+
+        <button onclick="copyCode()">Copiar Código</button>
+    </div>
+
+    <script>
+        function base32tohex(base32) {
+            const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+            let bits = "";
+            let hex = "";
+
+            base32 = base32.replace(/=+$/, '').toUpperCase();
+
+            for (let i = 0; i < base32.length; i++) {
+                bits += alphabet.indexOf(base32[i]).toString(2).padStart(5, '0');
+            }
+
+            for (let i = 0; i + 8 <= bits.length; i += 8) {
+                hex += parseInt(bits.substr(i, 8), 2).toString(16).padStart(2, '0');
+            }
+
+            return hex;
+        }
+
+        function generateTOTP(secret) {
+            const epoch = Math.floor(Date.now() / 1000 / 30);
+            const time = epoch.toString(16).padStart(16, '0');
+            const key = CryptoJS.enc.Hex.parse(base32tohex(secret));
+            const msg = CryptoJS.enc.Hex.parse(time);
+            const hash = CryptoJS.HmacSHA1(msg, key).toString(CryptoJS.enc.Hex);
+            const offset = parseInt(hash.substr(hash.length - 1), 16);
+            const code = (parseInt(hash.substr(offset * 2, 8), 16) & 0x7fffffff).toString();
+            return code.slice(-6).padStart(6, '0');
+        }
+
+        const secretInput = document.getElementById("secret");
+        const codeElement = document.getElementById("code");
+        const timerElement = document.getElementById("timer");
+
+        function update() {
+            const secret = secretInput.value.trim();
+            if (!secret) {
+                codeElement.innerText = "------";
+                timerElement.innerText = "Aguardando chave...";
+                return;
+            }
+
+            try {
+                const code = generateTOTP(secret);
+                codeElement.innerText = code;
+
+                const seconds = new Date().getSeconds();
+                timerElement.innerText = "Atualiza em " + (30 - (seconds % 30)) + "s";
+            } catch {
+                codeElement.innerText = "Erro";
+            }
+        }
+
+        setInterval(update, 1000);
+
+        secretInput.addEventListener("input", update);
+
+        function copyCode() {
+            const code = codeElement.innerText;
+            if (code && code !== "------") {
+                navigator.clipboard.writeText(code);
+            }
+        }
+    </script>
+
+</body>
+
+</html>
